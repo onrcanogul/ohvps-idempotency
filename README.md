@@ -1,63 +1,65 @@
-# ÖHVPS Idempotency Altyapısı
+# ÖHVPS Idempotency
 
-ÖHVPS'nin HHS'lere getirdiği idempotency kuralını Spring Boot üzerinde uygulayan örnek altyapı.
+A sample Spring Boot implementation of the idempotency rule that ÖHVPS (the Turkish open banking API standard)
+imposes on HHSs (account servicing providers, i.e. banks) for calls made by YÖSs (third-party providers).
 
-## Kural
+## The rule
 
-- HHS, `x-request-id|request.body` birleşiminden bir checksum üretir (CRC32, MD5 vb.).
-- Bu checksum ile YÖS'e döndüğü yanıtı **5 dakika** saklar.
-- Aynı istek numarası ve aynı gövdeyle gelen çağrıya, yeniden işlem yapmadan kayıtlı yanıtı döner.
-- 5 dakikadan sonra aynı istek yeni bir istek sayılır.
-- Kural şu POST'lar için zorunludur: ödeme emri rızası, erişim belirteci, ödeme emri, hesap bilgisi rızası,
-  ileri tarihli ödeme emri rızası ve emri, düzenli tekrarlı ödeme emri rızası ve emri.
+- The HHS generates a checksum from `x-request-id|request.body` (CRC32, MD5, etc.).
+- Using that checksum, it keeps the response returned to the YÖS for **5 minutes**.
+- A call with the same request id and the same body gets the stored response without being processed again.
+- After 5 minutes, the same request counts as a new request.
+- The rule is mandatory for these POSTs: payment order consent, access token, payment order,
+  account information consent, future-dated payment order consent and order, recurring payment order
+  consent and order.
 
-## Akış
+## Flow
 
 ```
 YÖS ──POST + x-request-id──▶ IdempotencyFilter
                                 │
-                                ├─ kapsam dışı yol / POST değil ─────────▶ controller (filtre devreye girmez)
-                                ├─ x-request-id yok ─────────────────────▶ 400
+                                ├─ path out of scope / not a POST ───────▶ controller (filter does nothing)
+                                ├─ no x-request-id ──────────────────────▶ 400
                                 │
-                                ├─ checksum = hash(x-request-id + "|" + ham gövde)
+                                ├─ checksum = hash(x-request-id + "|" + raw body)
                                 │
                                 ├─ store.reserve(checksum)
-                                │     ├─ Acquired  ─▶ controller çalışır ─▶ yanıt saklanır (TTL 5 dk) ─▶ YÖS
-                                │     └─ Existing  ─▶ kayıtlı yanıt (durum + başlıklar + gövde) ───────▶ YÖS
-                                │                     · istek hâlâ işleniyorsa sonucu beklenir
-                                │                     · bekleme süresi aşılırsa 409
+                                │     ├─ Acquired  ─▶ controller runs ─▶ response stored (TTL 5 min) ─▶ YÖS
+                                │     └─ Existing  ─▶ stored response (status + headers + body) ──────▶ YÖS
+                                │                     · if the request is still in progress, wait for its result
+                                │                     · 409 if the wait times out
 ```
 
-## Bileşenler
+## Components
 
-| Sınıf | Görev |
+| Class | Responsibility |
 |---|---|
 | `checksum.ChecksumAlgorithm` | CRC32, MD5, SHA256 |
-| `checksum.ChecksumGenerator` | `x-request-id|body` checksum'ı; gövde ham baytlarıyla kullanılır |
-| `web.CachedBodyHttpServletRequest` | Gövdeyi bir kez okur, controller'ın yeniden okumasına izin verir |
-| `store.IdempotencyStore` | `reserve` / `complete` / `release` sözleşmesi |
-| `store.InMemoryIdempotencyStore` | Tek düğüm için TTL'li bellek içi depo, periyodik temizlik |
-| `web.IdempotencyFilter` | Kuralı kapsamdaki POST'lara uygular |
-| `web.OhvpsErrorWriter` | Filtre hatalarını ÖHVPS hata gövdesi yapısında yazar |
-| `demo.OhvpsDemoController` | Sekiz zorunlu POST için örnek uç nokta (`OperationCounter` ile gerçek işlem sayısını tutar) |
+| `checksum.ChecksumGenerator` | `x-request-id|body` checksum; the body is used as raw bytes |
+| `web.CachedBodyHttpServletRequest` | Reads the body once and lets the controller read it again |
+| `store.IdempotencyStore` | `reserve` / `complete` / `release` contract |
+| `store.InMemoryIdempotencyStore` | Single-node in-memory store with TTL and periodic eviction |
+| `web.IdempotencyFilter` | Applies the rule to the configured POST endpoints |
+| `web.OhvpsErrorWriter` | Writes filter errors in the ÖHVPS error body format |
+| `demo.OhvpsDemoController` | Sample endpoints for the eight mandatory POSTs (`OperationCounter` tracks how many times each one really ran) |
 
-## Tasarım kararları
+## Design decisions
 
-- **Checksum anahtarı:** Kuraldaki gibi yalnızca `x-request-id|body`. Gövde JSON olarak yeniden
-  serileştirilmez; boşluk ya da alan sırası farkı yeni istek sayılır.
-- **Saklanan yanıt:** Durum kodu, başlıklar (`x-request-id`, imza başlıkları vb.) ve gövde birebir saklanır.
-  Gövde değişmediği için `x-jws-signature` gibi imzalar da geçerli kalır.
-- **TTL başlangıcı:** Yanıtın saklandığı an.
-- **Eşzamanlı kopyalar:** Aynı istek işlenirken gelen kopya, ilk işlemin yanıtını bekler (`in-flight-wait`).
-  İş mantığı yalnızca bir kez çalışır.
-- **5xx yanıtlar:** Varsayılan olarak saklanmaz (`store-server-errors: false`); YÖS'ün yeniden denemesi
-  işlemi tekrar çalıştırır. 2xx ve 4xx yanıtlar saklanır.
-- **Kayıttan dönüş işareti:** Kayıtlı yanıta `X-Idempotency-Replayed: true` eklenir. Birebir aynı yanıt
-  istenirse `replay-indicator-header` boş bırakılır.
-- **Filtre sırası:** Kimlik doğrulama ve imza doğrulama filtrelerinden sonra çalışmalıdır.
-- **Hata kodları:** `TR.OHVPS.Idempotency.*` kodları örnektir; HHS'nin hata kataloğuyla eşlenmelidir.
+- **Checksum key:** Only `x-request-id|body`, as the rule states. The body is not re-serialized as JSON;
+  a difference in whitespace or field order counts as a new request.
+- **Stored response:** Status code, headers (`x-request-id`, signature headers, etc.) and body are stored as is.
+  Since the body does not change, signatures such as `x-jws-signature` remain valid.
+- **TTL start:** The moment the response is stored.
+- **Concurrent duplicates:** A duplicate arriving while the same request is in progress waits for the first
+  response (`in-flight-wait`). The business logic runs only once.
+- **5xx responses:** Not stored by default (`store-server-errors: false`), so a retry by the YÖS processes the
+  operation again. 2xx and 4xx responses are stored.
+- **Replay indicator:** `X-Idempotency-Replayed: true` is added to replayed responses. Leave
+  `replay-indicator-header` blank if replays must be byte-for-byte identical.
+- **Filter order:** Must run after authentication and signature verification filters.
+- **Error codes:** The `TR.OHVPS.Idempotency.*` codes are examples and should be mapped to the HHS's error catalogue.
 
-## Ayarlar
+## Configuration
 
 ```yaml
 ohvps:
@@ -81,9 +83,9 @@ ohvps:
       - /ohvps/obh/s1.1/duzenli-odeme-emri
 ```
 
-Yollar örnek olarak `s1.1` sürümüyle verilmiştir; kullanılan API sürümüne göre güncellenmelidir.
+The paths use version `s1.1` as an example; update them to match the API version in use.
 
-## Çalıştırma
+## Running
 
 ```bash
 ./mvnw spring-boot:run
@@ -93,25 +95,26 @@ Yollar örnek olarak `s1.1` sürümüyle verilmiştir; kullanılan API sürümü
 curl -i -X POST localhost:8080/ohvps/obh/s1.1/odeme-emri -H "x-request-id: abc-1" -H "Content-Type: application/json" -d '{"amount":"100.00"}'
 ```
 
-Aynı komut 5 dakika içinde tekrar çalıştırıldığında aynı `operationId` ve `X-Idempotency-Replayed: true`
-başlığı döner; `sequence` artmaz. `x-request-id` ya da gövde değiştiğinde yeni işlem oluşur.
+Running the same command again within 5 minutes returns the same `operationId` and the
+`X-Idempotency-Replayed: true` header; `sequence` does not increase. Changing `x-request-id` or the body
+creates a new operation.
 
-## Testler
+## Tests
 
 ```bash
 ./mvnw test
 ```
 
-- `ChecksumGeneratorTest`: üç algoritma için checksum davranışı
-- `InMemoryIdempotencyStoreTest`: TTL, eşzamanlı rezervasyon, bırakma ve temizlik
-- `IdempotencyIntegrationTest`: sekiz uç noktanın tamamında kayıttan dönüş, farklı gövde/numara,
-  4:59 ve 5:00 sınırları, eksik başlık, eşzamanlı kopyalar
-- `IdempotencyScopeTest`: 5xx'in saklanmaması, 4xx'in saklanması, kapsam dışı uç noktalar
+- `ChecksumGeneratorTest`: checksum behaviour for all three algorithms
+- `InMemoryIdempotencyStoreTest`: TTL, concurrent reservation, release and eviction
+- `IdempotencyIntegrationTest`: replay on all eight endpoints, different body/request id,
+  the 4:59 and 5:00 boundaries, missing header, concurrent duplicates
+- `IdempotencyScopeTest`: 5xx not stored, 4xx stored, out-of-scope endpoints
 
-## Üretime geçerken
+## Going to production
 
-- **Çok düğüm:** `InMemoryIdempotencyStore` yerine paylaşımlı bir depo gerekir.
-  - Redis: `SET checksum <in-progress> NX PX 300000` ile rezervasyon, tamamlanınca yanıtla güncelleme.
-  - Veritabanı: `checksum` üzerinde tekil indeks, `expires_at` sütunu ve periyodik silme.
-- **Gövde boyutu:** İstek ve yanıt belleğe alındığı için gövde boyutuna üst sınır konmalıdır.
-- **Asenkron controller'lar** (`DeferredResult`, `Callable`) bu filtreyle desteklenmez.
+- **Multiple nodes:** Replace `InMemoryIdempotencyStore` with a shared store.
+  - Redis: reserve with `SET checksum <in-progress> NX PX 300000`, then update with the response on completion.
+  - Database: unique index on `checksum`, an `expires_at` column and periodic deletion.
+- **Body size:** Requests and responses are buffered in memory, so put an upper limit on body size.
+- **Async controllers** (`DeferredResult`, `Callable`) are not supported by this filter.
