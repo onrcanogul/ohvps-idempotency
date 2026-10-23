@@ -13,8 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.util.UrlPathHelper;
 
 /**
- * Filtrenin kendi ürettiği hataları ÖHVPS hata gövdesi yapısında yazar.
- * Hata kodları örnektir; HHS'nin kendi hata kataloğuyla eşlenmelidir.
+ * Writes errors produced by the filter itself in the ÖHVPS error body format.
+ * The error codes are examples and should be mapped to the HHS's own error catalogue.
  */
 public class OhvpsErrorWriter {
 

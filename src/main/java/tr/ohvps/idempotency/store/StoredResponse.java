@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * YÖS'e dönülen yanıtın birebir kopyası: durum kodu, başlıklar ve gövde.
+ * Exact copy of the response returned to the YÖS: status code, headers and body.
  */
 public record StoredResponse(int status, Map<String, List<String>> headers, byte[] body) {
 

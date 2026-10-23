@@ -39,7 +39,7 @@ YÖS ──POST + x-request-id──▶ IdempotencyFilter
 | `store.InMemoryIdempotencyStore` | Tek düğüm için TTL'li bellek içi depo, periyodik temizlik |
 | `web.IdempotencyFilter` | Kuralı kapsamdaki POST'lara uygular |
 | `web.OhvpsErrorWriter` | Filtre hatalarını ÖHVPS hata gövdesi yapısında yazar |
-| `demo.OhvpsDemoController` | Sekiz zorunlu POST için örnek uç nokta |
+| `demo.OhvpsDemoController` | Sekiz zorunlu POST için örnek uç nokta (`OperationCounter` ile gerçek işlem sayısını tutar) |
 
 ## Tasarım kararları
 
@@ -90,11 +90,11 @@ Yollar örnek olarak `s1.1` sürümüyle verilmiştir; kullanılan API sürümü
 ```
 
 ```bash
-curl -i -X POST localhost:8080/ohvps/obh/s1.1/odeme-emri -H "x-request-id: abc-1" -H "Content-Type: application/json" -d '{"tutar":"100.00"}'
+curl -i -X POST localhost:8080/ohvps/obh/s1.1/odeme-emri -H "x-request-id: abc-1" -H "Content-Type: application/json" -d '{"amount":"100.00"}'
 ```
 
-Aynı komut 5 dakika içinde tekrar çalıştırıldığında aynı `islemNo` ve `X-Idempotency-Replayed: true`
-başlığı döner; `islemSirasi` artmaz. `x-request-id` ya da gövde değiştiğinde yeni işlem oluşur.
+Aynı komut 5 dakika içinde tekrar çalıştırıldığında aynı `operationId` ve `X-Idempotency-Replayed: true`
+başlığı döner; `sequence` artmaz. `x-request-id` ya da gövde değiştiğinde yeni işlem oluşur.
 
 ## Testler
 

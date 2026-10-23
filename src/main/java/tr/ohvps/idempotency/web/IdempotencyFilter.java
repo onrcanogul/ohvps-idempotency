@@ -35,14 +35,14 @@ import tr.ohvps.idempotency.store.Reservation;
 import tr.ohvps.idempotency.store.StoredResponse;
 
 /**
- * ÖHVPS idempotency kuralını kapsamdaki POST uç noktalarına uygular:
+ * Applies the ÖHVPS idempotency rule to the configured POST endpoints:
  * <ol>
- *     <li>{@code x-request-id|request.body} birleşiminden checksum üretilir.</li>
- *     <li>Checksum için saklanan yanıt varsa istek yeniden işlenmeden o yanıt döner.</li>
- *     <li>Yoksa istek işlenir ve YÖS'e dönen yanıt TTL (5 dakika) boyunca saklanır.</li>
+ *     <li>A checksum is generated from {@code x-request-id|request.body}.</li>
+ *     <li>If a response is stored for the checksum, it is returned without processing the request again.</li>
+ *     <li>Otherwise the request is processed and the response returned to the YÖS is kept for the TTL (5 minutes).</li>
  * </ol>
- * Aynı istek henüz işlenirken gelen kopya, ilk işlemin yanıtını bekler; böylece iş
- * mantığı eşzamanlı kopyalar için de bir kez çalışır.
+ * A duplicate arriving while the same request is still being processed waits for the first
+ * response, so the business logic runs once even for concurrent duplicates.
  */
 public class IdempotencyFilter extends OncePerRequestFilter {
 
@@ -103,12 +103,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             try {
                 StoredResponse stored = ((Reservation.Existing) reservation).response()
                         .get(properties.inFlightWait().toMillis(), TimeUnit.MILLISECONDS);
-                log.debug("Saklanan yanıt dönülüyor, x-request-id={}, checksum={}", requestId, key);
+                log.debug("Replaying stored response, x-request-id={}, checksum={}", requestId, key);
                 replay(stored, response);
                 return;
             } catch (ExecutionException released) {
-                // İlk işlem yanıt saklamadan bitti; isteği bu çağrı işlemeyi dener.
-                log.debug("Rezervasyon bırakıldı, yeniden deneniyor, checksum={}", key);
+                // The first attempt ended without storing a response; this call tries to process the request.
+                log.debug("Reservation released, retrying, checksum={}", key);
             } catch (TimeoutException e) {
                 errorWriter.write(request, response, HttpStatus.CONFLICT,
                         "TR.OHVPS.Idempotency.RequestInProgress",
@@ -117,7 +117,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 return;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new ServletException("Saklanan yanıt beklenirken kesildi", e);
+                throw new ServletException("Interrupted while waiting for stored response", e);
             }
         }
     }

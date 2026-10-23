@@ -13,8 +13,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 
 /**
- * Gövdeyi bir kez okuyup bellekte tutar. Checksum hesaplandıktan sonra
- * controller gövdeyi aynen yeniden okuyabilir.
+ * Reads the body once and keeps it in memory, so the controller can read the
+ * same body again after the checksum has been calculated.
  */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
@@ -55,7 +55,7 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
             @Override
             public void setReadListener(ReadListener readListener) {
-                throw new UnsupportedOperationException("Asenkron okuma desteklenmiyor");
+                throw new UnsupportedOperationException("Async reads are not supported");
             }
         };
     }

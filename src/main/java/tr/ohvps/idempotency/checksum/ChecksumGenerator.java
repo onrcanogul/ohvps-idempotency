@@ -3,8 +3,8 @@ package tr.ohvps.idempotency.checksum;
 import java.nio.charset.StandardCharsets;
 
 /**
- * {@code x-request-id|request.body} birleşiminden checksum üretir.
- * Gövde, YÖS'ün gönderdiği ham baytlarla kullanılır; JSON yeniden serileştirilmez.
+ * Generates a checksum from {@code x-request-id|request.body}.
+ * The body is used as the raw bytes sent by the YÖS; JSON is not re-serialized.
  */
 public class ChecksumGenerator {
 

@@ -8,14 +8,14 @@ ohvps:
     request-id-header: x-request-id
     # CRC32 | MD5 | SHA256
     algorithm: SHA256
-    # ÖHVPS: yanıt 5 dakika saklanır, sonrasında aynı istek yeni istek sayılır
+    # ÖHVPS: responses are kept for 5 minutes; after that the same request counts as a new one
     ttl: 5m
-    # Aynı istek işlenirken gelen kopyanın ilk yanıtı bekleme süresi
+    # How long a duplicate waits for the first response while the same request is in progress
     in-flight-wait: 30s
     store-server-errors: false
     replay-indicator-header: X-Idempotency-Replayed
     cleanup-interval: 60s
-    # Kuralın zorunlu olduğu POST uç noktaları. Yollar API sürümüne göre güncellenmelidir.
+    # POST endpoints where the rule is mandatory. Update the paths to match the API version.
     paths:
       - /ohvps/obh/s1.1/odeme-emri-rizasi
       - /ohvps/gkd/s1.1/erisim-belirteci

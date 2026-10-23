@@ -31,8 +31,8 @@ public class IdempotencyConfig {
     }
 
     /**
-     * Çok düğümlü kurulumda bu bean Redis ya da veritabanı tabanlı bir
-     * {@link IdempotencyStore} ile değiştirilmelidir.
+     * In a multi-node setup this bean should be replaced with a Redis or database backed
+     * {@link IdempotencyStore}.
      */
     @Bean
     IdempotencyStore idempotencyStore(Clock clock, IdempotencyProperties properties) {
@@ -45,8 +45,8 @@ public class IdempotencyConfig {
     }
 
     /**
-     * Filtre kimlik doğrulama/imza doğrulama filtrelerinden sonra çalışmalı; aksi halde
-     * doğrulanmamış bir istek, saklanan yanıtı geri alabilir.
+     * The filter must run after authentication/signature verification filters; otherwise an
+     * unverified request could obtain a stored response.
      */
     @Bean
     FilterRegistrationBean<IdempotencyFilter> idempotencyFilter(IdempotencyProperties properties,

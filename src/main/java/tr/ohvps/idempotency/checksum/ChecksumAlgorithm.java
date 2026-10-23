@@ -6,8 +6,8 @@ import java.util.HexFormat;
 import java.util.zip.CRC32;
 
 /**
- * ÖHVPS kuralı checksum algoritmasını HHS'ye bırakır (CRC32, MD5 vb.).
- * Çakışma ihtimali en düşük olduğu için varsayılan SHA256'dır.
+ * The ÖHVPS rule leaves the checksum algorithm to the HHS (CRC32, MD5, etc.).
+ * SHA256 is the default because it has the lowest collision probability.
  */
 public enum ChecksumAlgorithm {
 
@@ -46,7 +46,7 @@ public enum ChecksumAlgorithm {
             }
             return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(algorithm + " algoritması bu JVM'de yok", e);
+            throw new IllegalStateException(algorithm + " is not available in this JVM", e);
         }
     }
 }

@@ -10,11 +10,11 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 class ChecksumGeneratorTest {
 
-    private static final byte[] BODY = "{\"tutar\":\"100.00\"}".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] BODY = "{\"amount\":\"100.00\"}".getBytes(StandardCharsets.UTF_8);
 
     @ParameterizedTest
     @EnumSource(ChecksumAlgorithm.class)
-    void ayniIstekNumarasiVeGovdeAyniChecksumuUretir(ChecksumAlgorithm algorithm) {
+    void sameRequestIdAndBodyProduceSameChecksum(ChecksumAlgorithm algorithm) {
         ChecksumGenerator generator = new ChecksumGenerator(algorithm);
 
         assertThat(generator.generate("req-1", BODY)).isEqualTo(generator.generate("req-1", BODY.clone()));
@@ -22,7 +22,7 @@ class ChecksumGeneratorTest {
 
     @ParameterizedTest
     @EnumSource(ChecksumAlgorithm.class)
-    void farkliIstekNumarasiFarkliChecksumUretir(ChecksumAlgorithm algorithm) {
+    void differentRequestIdProducesDifferentChecksum(ChecksumAlgorithm algorithm) {
         ChecksumGenerator generator = new ChecksumGenerator(algorithm);
 
         assertThat(generator.generate("req-1", BODY)).isNotEqualTo(generator.generate("req-2", BODY));
@@ -30,17 +30,17 @@ class ChecksumGeneratorTest {
 
     @ParameterizedTest
     @EnumSource(ChecksumAlgorithm.class)
-    void farkliGovdeFarkliChecksumUretir(ChecksumAlgorithm algorithm) {
+    void differentBodyProducesDifferentChecksum(ChecksumAlgorithm algorithm) {
         ChecksumGenerator generator = new ChecksumGenerator(algorithm);
-        byte[] otherBody = "{\"tutar\":\"200.00\"}".getBytes(StandardCharsets.UTF_8);
+        byte[] otherBody = "{\"amount\":\"200.00\"}".getBytes(StandardCharsets.UTF_8);
 
         assertThat(generator.generate("req-1", BODY)).isNotEqualTo(generator.generate("req-1", otherBody));
     }
 
     @Test
-    void checksumIstekNumarasiBoruVeGovdeBirlesimindenHesaplanir() {
+    void checksumIsCalculatedOverRequestIdPipeBody() {
         ChecksumGenerator generator = new ChecksumGenerator(ChecksumAlgorithm.MD5);
-        byte[] joined = "req-1|{\"tutar\":\"100.00\"}".getBytes(StandardCharsets.UTF_8);
+        byte[] joined = "req-1|{\"amount\":\"100.00\"}".getBytes(StandardCharsets.UTF_8);
 
         assertThat(generator.generate("req-1", BODY)).isEqualTo(ChecksumAlgorithm.MD5.checksum(joined));
     }

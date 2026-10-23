@@ -24,9 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 import tr.ohvps.idempotency.support.TestClockConfig;
 
 /**
- * Kapsam dışı uç noktaların ve 5xx yanıtların saklanmadığını doğrular.
+ * Verifies that out-of-scope endpoints and 5xx responses are not stored.
  */
-@SpringBootTest(properties = "ohvps.idempotency.paths=/test/kapsamli/**")
+@SpringBootTest(properties = "ohvps.idempotency.paths=/test/covered/**")
 @AutoConfigureMockMvc
 @Import({TestClockConfig.class, IdempotencyScopeTest.TestEndpoints.class})
 class IdempotencyScopeTest {
@@ -43,21 +43,21 @@ class IdempotencyScopeTest {
     }
 
     @Test
-    void sunucuHatasiSaklanmazAyniIstekYenidenIslenir() throws Exception {
-        mockMvc.perform(post("/test/kapsamli/ilki-hatali").header("x-request-id", "r-5xx")
+    void serverErrorIsNotStoredAndSameRequestIsProcessedAgain() throws Exception {
+        mockMvc.perform(post("/test/covered/fails-first").header("x-request-id", "r-5xx")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isServiceUnavailable());
 
-        mockMvc.perform(post("/test/kapsamli/ilki-hatali").header("x-request-id", "r-5xx")
+        mockMvc.perform(post("/test/covered/fails-first").header("x-request-id", "r-5xx")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("2"));
     }
 
     @Test
-    void istemciHatasiSaklanirVeAynenDoner() throws Exception {
+    void clientErrorIsStoredAndReplayed() throws Exception {
         for (int i = 0; i < 2; i++) {
-            mockMvc.perform(post("/test/kapsamli/gecersiz").header("x-request-id", "r-4xx")
+            mockMvc.perform(post("/test/covered/invalid").header("x-request-id", "r-4xx")
                             .contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isUnprocessableContent())
                     .andExpect(content().string("1"));
@@ -65,44 +65,44 @@ class IdempotencyScopeTest {
     }
 
     @Test
-    void kapsamDisiUcNoktaIdempotencyUygulanmadanIslenir() throws Exception {
+    void outOfScopeEndpointIsProcessedWithoutIdempotency() throws Exception {
         for (int i = 0; i < 2; i++) {
-            mockMvc.perform(post("/test/kapsam-disi").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            mockMvc.perform(post("/test/not-covered").contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isOk());
         }
 
-        assertThat(endpoints.kapsamDisiCagri.get()).isEqualTo(2);
+        assertThat(endpoints.notCoveredCalls.get()).isEqualTo(2);
     }
 
     @RestController
     @TestConfiguration(proxyBeanMethods = false)
     static class TestEndpoints {
 
-        private final AtomicInteger ilkiHataliCagri = new AtomicInteger();
-        private final AtomicInteger gecersizCagri = new AtomicInteger();
-        private final AtomicInteger kapsamDisiCagri = new AtomicInteger();
+        private final AtomicInteger failsFirstCalls = new AtomicInteger();
+        private final AtomicInteger invalidCalls = new AtomicInteger();
+        private final AtomicInteger notCoveredCalls = new AtomicInteger();
 
         void reset() {
-            ilkiHataliCagri.set(0);
-            gecersizCagri.set(0);
-            kapsamDisiCagri.set(0);
+            failsFirstCalls.set(0);
+            invalidCalls.set(0);
+            notCoveredCalls.set(0);
         }
 
-        @PostMapping("/test/kapsamli/ilki-hatali")
-        ResponseEntity<String> ilkiHatali() {
-            int cagri = ilkiHataliCagri.incrementAndGet();
-            HttpStatus status = cagri == 1 ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK;
-            return ResponseEntity.status(status).body(String.valueOf(cagri));
+        @PostMapping("/test/covered/fails-first")
+        ResponseEntity<String> failsFirst() {
+            int call = failsFirstCalls.incrementAndGet();
+            HttpStatus status = call == 1 ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK;
+            return ResponseEntity.status(status).body(String.valueOf(call));
         }
 
-        @PostMapping("/test/kapsamli/gecersiz")
-        ResponseEntity<String> gecersiz() {
-            return ResponseEntity.unprocessableContent().body(String.valueOf(gecersizCagri.incrementAndGet()));
+        @PostMapping("/test/covered/invalid")
+        ResponseEntity<String> invalid() {
+            return ResponseEntity.unprocessableContent().body(String.valueOf(invalidCalls.incrementAndGet()));
         }
 
-        @PostMapping("/test/kapsam-disi")
-        ResponseEntity<String> kapsamDisi() {
-            return ResponseEntity.ok(String.valueOf(kapsamDisiCagri.incrementAndGet()));
+        @PostMapping("/test/not-covered")
+        ResponseEntity<String> notCovered() {
+            return ResponseEntity.ok(String.valueOf(notCoveredCalls.incrementAndGet()));
         }
     }
 }

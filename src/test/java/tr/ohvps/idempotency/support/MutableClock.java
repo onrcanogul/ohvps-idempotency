@@ -7,7 +7,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 
 /**
- * TTL senaryolarını beklemeden test etmek için ileri sarılabilen saat.
+ * Clock that can be moved forward to test TTL scenarios without waiting.
  */
 public class MutableClock extends Clock {
 

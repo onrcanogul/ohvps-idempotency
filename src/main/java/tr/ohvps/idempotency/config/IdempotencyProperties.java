@@ -9,16 +9,16 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import tr.ohvps.idempotency.checksum.ChecksumAlgorithm;
 
 /**
- * ÖHVPS idempotency ayarları.
+ * ÖHVPS idempotency settings.
  *
- * @param enabled                altyapıyı tamamen açar/kapatır
- * @param requestIdHeader        istek numarasının geldiği başlık
- * @param algorithm              checksum algoritması
- * @param ttl                    yanıtın saklanma süresi; ÖHVPS kuralı 5 dakikadır
- * @param inFlightWait           aynı istek işlenirken gelen kopyanın bekleyeceği en uzun süre
- * @param storeServerErrors      5xx yanıtların da saklanıp saklanmayacağı
- * @param replayIndicatorHeader  kayıttan dönen yanıta eklenen başlık; boşsa eklenmez
- * @param paths                  kuralın uygulandığı POST uç noktaları (Spring path pattern)
+ * @param enabled                turns the whole mechanism on/off
+ * @param requestIdHeader        header carrying the request id
+ * @param algorithm              checksum algorithm
+ * @param ttl                    how long a response is kept; the ÖHVPS rule is 5 minutes
+ * @param inFlightWait           maximum time a duplicate waits while the same request is still being processed
+ * @param storeServerErrors      whether 5xx responses are stored as well
+ * @param replayIndicatorHeader  header added to replayed responses; not added when blank
+ * @param paths                  POST endpoints the rule applies to (Spring path patterns)
  */
 @ConfigurationProperties(prefix = "ohvps.idempotency")
 public record IdempotencyProperties(

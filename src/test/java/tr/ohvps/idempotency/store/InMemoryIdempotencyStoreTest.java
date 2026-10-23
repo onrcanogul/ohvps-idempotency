@@ -22,12 +22,12 @@ class InMemoryIdempotencyStoreTest {
     private final InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(clock, TTL);
 
     @Test
-    void ilkRezervasyonIslemHakkiVerir() {
+    void firstReservationIsAcquired() {
         assertThat(store.reserve("k")).isInstanceOf(Reservation.Acquired.class);
     }
 
     @Test
-    void islenirkenGelenKopyaTamamlanincaAyniYanitiAlir() {
+    void duplicateDuringProcessingGetsSameResponseOnCompletion() {
         store.reserve("k");
         Reservation duplicate = store.reserve("k");
 
@@ -35,27 +35,27 @@ class InMemoryIdempotencyStoreTest {
         Reservation.Existing existing = (Reservation.Existing) duplicate;
         assertThat(existing.response()).isNotDone();
 
-        store.complete("k", response("ilk"));
+        store.complete("k", response("first"));
 
-        assertThat(existing.response().join().body()).isEqualTo(bytes("ilk"));
+        assertThat(existing.response().join().body()).isEqualTo(bytes("first"));
     }
 
     @Test
-    void yanitBesDakikaBoyuncaDoner() {
+    void responseIsReturnedForFiveMinutes() {
         store.reserve("k");
-        store.complete("k", response("ilk"));
+        store.complete("k", response("first"));
 
         clock.advance(TTL.minusSeconds(1));
 
         Reservation reservation = store.reserve("k");
         assertThat(reservation).isInstanceOf(Reservation.Existing.class);
-        assertThat(((Reservation.Existing) reservation).response().join().body()).isEqualTo(bytes("ilk"));
+        assertThat(((Reservation.Existing) reservation).response().join().body()).isEqualTo(bytes("first"));
     }
 
     @Test
-    void besDakikaSonraAyniIstekYeniIstekSayilir() {
+    void sameRequestAfterFiveMinutesIsNewRequest() {
         store.reserve("k");
-        store.complete("k", response("ilk"));
+        store.complete("k", response("first"));
 
         clock.advance(TTL);
 
@@ -63,10 +63,10 @@ class InMemoryIdempotencyStoreTest {
     }
 
     @Test
-    void sureYanitinSaklandigiAndanBaslar() {
+    void ttlStartsWhenResponseIsStored() {
         store.reserve("k");
         clock.advance(Duration.ofMinutes(2));
-        store.complete("k", response("ilk"));
+        store.complete("k", response("first"));
 
         clock.advance(TTL.minusSeconds(1));
 
@@ -74,7 +74,7 @@ class InMemoryIdempotencyStoreTest {
     }
 
     @Test
-    void birakilanRezervasyonBekleyenleriUyandirirVeYeniIslemeIzinVerir() {
+    void releasedReservationWakesWaitersAndAllowsReprocessing() {
         store.reserve("k");
         Reservation.Existing waiting = (Reservation.Existing) store.reserve("k");
 
@@ -87,7 +87,7 @@ class InMemoryIdempotencyStoreTest {
     }
 
     @Test
-    void suresiDolanKayitlarTemizlenir() {
+    void expiredEntriesAreEvicted() {
         store.reserve("a");
         store.complete("a", response("a"));
         clock.advance(Duration.ofMinutes(3));

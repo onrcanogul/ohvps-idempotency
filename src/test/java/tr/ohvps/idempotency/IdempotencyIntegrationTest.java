@@ -31,8 +31,8 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.jayway.jsonpath.JsonPath;
 
-import tr.ohvps.idempotency.demo.IslemSayaci;
-import tr.ohvps.idempotency.demo.IslemTuru;
+import tr.ohvps.idempotency.demo.OperationCounter;
+import tr.ohvps.idempotency.demo.OperationType;
 import tr.ohvps.idempotency.support.MutableClock;
 import tr.ohvps.idempotency.support.TestClockConfig;
 
@@ -41,14 +41,14 @@ import tr.ohvps.idempotency.support.TestClockConfig;
 @Import(TestClockConfig.class)
 class IdempotencyIntegrationTest {
 
-    private static final String ODEME_EMRI = "/ohvps/obh/s1.1/odeme-emri";
-    private static final String GOVDE = "{\"tutar\":\"100.00\",\"alici\":\"TR330006100519786457841326\"}";
+    private static final String PAYMENT_ORDER = "/ohvps/obh/s1.1/odeme-emri";
+    private static final String BODY = "{\"amount\":\"100.00\",\"creditor\":\"TR330006100519786457841326\"}";
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private IslemSayaci islemSayaci;
+    private OperationCounter operationCounter;
 
     @Autowired
     private MutableClock clock;
@@ -57,132 +57,132 @@ class IdempotencyIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        islemSayaci.sifirla();
+        operationCounter.reset();
         requestId = UUID.randomUUID().toString();
     }
 
     @ParameterizedTest(name = "{0}")
     @CsvSource({
-            "ODEME_EMRI_RIZASI, /ohvps/obh/s1.1/odeme-emri-rizasi",
-            "ERISIM_BELIRTECI, /ohvps/gkd/s1.1/erisim-belirteci",
-            "ODEME_EMRI, /ohvps/obh/s1.1/odeme-emri",
-            "HESAP_BILGISI_RIZASI, /ohvps/hbh/s1.1/hesap-bilgisi-rizasi",
-            "ILERI_TARIHLI_ODEME_EMRI_RIZASI, /ohvps/obh/s1.1/ileri-tarihli-odeme-emri-rizasi",
-            "ILERI_TARIHLI_ODEME_EMRI, /ohvps/obh/s1.1/ileri-tarihli-odeme-emri",
-            "DUZENLI_ODEME_EMRI_RIZASI, /ohvps/obh/s1.1/duzenli-odeme-emri-rizasi",
-            "DUZENLI_ODEME_EMRI, /ohvps/obh/s1.1/duzenli-odeme-emri"
+            "PAYMENT_ORDER_CONSENT, /ohvps/obh/s1.1/odeme-emri-rizasi",
+            "ACCESS_TOKEN, /ohvps/gkd/s1.1/erisim-belirteci",
+            "PAYMENT_ORDER, /ohvps/obh/s1.1/odeme-emri",
+            "ACCOUNT_INFORMATION_CONSENT, /ohvps/hbh/s1.1/hesap-bilgisi-rizasi",
+            "FUTURE_DATED_PAYMENT_ORDER_CONSENT, /ohvps/obh/s1.1/ileri-tarihli-odeme-emri-rizasi",
+            "FUTURE_DATED_PAYMENT_ORDER, /ohvps/obh/s1.1/ileri-tarihli-odeme-emri",
+            "RECURRING_PAYMENT_ORDER_CONSENT, /ohvps/obh/s1.1/duzenli-odeme-emri-rizasi",
+            "RECURRING_PAYMENT_ORDER, /ohvps/obh/s1.1/duzenli-odeme-emri"
     })
-    void kapsamdakiHerPostAyniIstegiYenidenIslemedenKayitliYanitiDoner(IslemTuru tur, String path) throws Exception {
-        MvcResult ilk = gonder(path, requestId, GOVDE);
-        MvcResult tekrar = gonder(path, requestId, GOVDE);
+    void everyCoveredPostReplaysStoredResponseWithoutReprocessing(OperationType type, String path) throws Exception {
+        MvcResult first = send(path, requestId, BODY);
+        MvcResult repeated = send(path, requestId, BODY);
 
-        assertThat(tekrar.getResponse().getStatus()).isEqualTo(ilk.getResponse().getStatus()).isEqualTo(201);
-        assertThat(tekrar.getResponse().getContentAsString()).isEqualTo(ilk.getResponse().getContentAsString());
-        assertThat(tekrar.getResponse().getHeader("x-request-id")).isEqualTo(requestId);
-        assertThat(ilk.getResponse().getHeader("X-Idempotency-Replayed")).isNull();
-        assertThat(tekrar.getResponse().getHeader("X-Idempotency-Replayed")).isEqualTo("true");
-        assertThat(islemSayaci.deger(tur)).isEqualTo(1);
+        assertThat(repeated.getResponse().getStatus()).isEqualTo(first.getResponse().getStatus()).isEqualTo(201);
+        assertThat(repeated.getResponse().getContentAsString()).isEqualTo(first.getResponse().getContentAsString());
+        assertThat(repeated.getResponse().getHeader("x-request-id")).isEqualTo(requestId);
+        assertThat(first.getResponse().getHeader("X-Idempotency-Replayed")).isNull();
+        assertThat(repeated.getResponse().getHeader("X-Idempotency-Replayed")).isEqualTo("true");
+        assertThat(operationCounter.get(type)).isEqualTo(1);
     }
 
     @Test
-    void ayniIstekNumarasiFarkliGovdeYeniIstekSayilir() throws Exception {
-        String ilk = islemNo(gonder(ODEME_EMRI, requestId, GOVDE));
-        String ikinci = islemNo(gonder(ODEME_EMRI, requestId, "{\"tutar\":\"200.00\"}"));
+    void sameRequestIdWithDifferentBodyIsNewRequest() throws Exception {
+        String first = operationId(send(PAYMENT_ORDER, requestId, BODY));
+        String second = operationId(send(PAYMENT_ORDER, requestId, "{\"amount\":\"200.00\"}"));
 
-        assertThat(ikinci).isNotEqualTo(ilk);
-        assertThat(islemSayaci.deger(IslemTuru.ODEME_EMRI)).isEqualTo(2);
+        assertThat(second).isNotEqualTo(first);
+        assertThat(operationCounter.get(OperationType.PAYMENT_ORDER)).isEqualTo(2);
     }
 
     @Test
-    void farkliIstekNumarasiAyniGovdeYeniIstekSayilir() throws Exception {
-        String ilk = islemNo(gonder(ODEME_EMRI, requestId, GOVDE));
-        String ikinci = islemNo(gonder(ODEME_EMRI, UUID.randomUUID().toString(), GOVDE));
+    void differentRequestIdWithSameBodyIsNewRequest() throws Exception {
+        String first = operationId(send(PAYMENT_ORDER, requestId, BODY));
+        String second = operationId(send(PAYMENT_ORDER, UUID.randomUUID().toString(), BODY));
 
-        assertThat(ikinci).isNotEqualTo(ilk);
-        assertThat(islemSayaci.deger(IslemTuru.ODEME_EMRI)).isEqualTo(2);
+        assertThat(second).isNotEqualTo(first);
+        assertThat(operationCounter.get(OperationType.PAYMENT_ORDER)).isEqualTo(2);
     }
 
     @Test
-    void besDakikaDolmadanAyniIstekKayitliYanitiAlir() throws Exception {
-        String ilk = islemNo(gonder(ODEME_EMRI, requestId, GOVDE));
+    void sameRequestWithinFiveMinutesGetsStoredResponse() throws Exception {
+        String first = operationId(send(PAYMENT_ORDER, requestId, BODY));
 
         clock.advance(Duration.ofMinutes(5).minusSeconds(1));
 
-        assertThat(islemNo(gonder(ODEME_EMRI, requestId, GOVDE))).isEqualTo(ilk);
-        assertThat(islemSayaci.deger(IslemTuru.ODEME_EMRI)).isEqualTo(1);
+        assertThat(operationId(send(PAYMENT_ORDER, requestId, BODY))).isEqualTo(first);
+        assertThat(operationCounter.get(OperationType.PAYMENT_ORDER)).isEqualTo(1);
     }
 
     @Test
-    void besDakikaSonraAyniIstekYeniIstekSayilir() throws Exception {
-        String ilk = islemNo(gonder(ODEME_EMRI, requestId, GOVDE));
+    void sameRequestAfterFiveMinutesIsNewRequest() throws Exception {
+        String first = operationId(send(PAYMENT_ORDER, requestId, BODY));
 
         clock.advance(Duration.ofMinutes(5));
 
-        MvcResult yeni = gonder(ODEME_EMRI, requestId, GOVDE);
-        assertThat(islemNo(yeni)).isNotEqualTo(ilk);
-        assertThat(yeni.getResponse().getHeader("X-Idempotency-Replayed")).isNull();
-        assertThat(islemSayaci.deger(IslemTuru.ODEME_EMRI)).isEqualTo(2);
+        MvcResult fresh = send(PAYMENT_ORDER, requestId, BODY);
+        assertThat(operationId(fresh)).isNotEqualTo(first);
+        assertThat(fresh.getResponse().getHeader("X-Idempotency-Replayed")).isNull();
+        assertThat(operationCounter.get(OperationType.PAYMENT_ORDER)).isEqualTo(2);
     }
 
     @Test
-    void istekNumarasiOlmayanIstekReddedilirVeIslenmez() throws Exception {
-        mockMvc.perform(post(ODEME_EMRI).contentType(MediaType.APPLICATION_JSON).content(GOVDE))
+    void requestWithoutRequestIdIsRejectedAndNotProcessed() throws Exception {
+        mockMvc.perform(post(PAYMENT_ORDER).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.httpCode").value(400))
                 .andExpect(jsonPath("$.errorCode").value("TR.OHVPS.Idempotency.MissingRequestId"));
 
-        assertThat(islemSayaci.deger(IslemTuru.ODEME_EMRI)).isZero();
+        assertThat(operationCounter.get(OperationType.PAYMENT_ORDER)).isZero();
     }
 
     @Test
-    void eszamanliAyniIstekleriIsMantigiYalnizcaBirKezCalisir() throws Exception {
-        int kopyaSayisi = 16;
-        ExecutorService executor = Executors.newFixedThreadPool(kopyaSayisi);
-        CountDownLatch basla = new CountDownLatch(1);
+    void concurrentDuplicatesRunBusinessLogicOnce() throws Exception {
+        int duplicates = 16;
+        ExecutorService executor = Executors.newFixedThreadPool(duplicates);
+        CountDownLatch start = new CountDownLatch(1);
         try {
-            List<Future<MvcResult>> sonuclar = new ArrayList<>();
-            for (int i = 0; i < kopyaSayisi; i++) {
-                sonuclar.add(executor.submit(() -> {
-                    basla.await();
-                    return gonder(ODEME_EMRI, requestId, GOVDE);
+            List<Future<MvcResult>> results = new ArrayList<>();
+            for (int i = 0; i < duplicates; i++) {
+                results.add(executor.submit(() -> {
+                    start.await();
+                    return send(PAYMENT_ORDER, requestId, BODY);
                 }));
             }
-            basla.countDown();
+            start.countDown();
 
-            Set<String> islemNolari = new HashSet<>();
-            for (Future<MvcResult> sonuc : sonuclar) {
-                islemNolari.add(islemNo(sonuc.get()));
+            Set<String> operationIds = new HashSet<>();
+            for (Future<MvcResult> result : results) {
+                operationIds.add(operationId(result.get()));
             }
 
-            assertThat(islemNolari).hasSize(1);
-            assertThat(islemSayaci.deger(IslemTuru.ODEME_EMRI)).isEqualTo(1);
+            assertThat(operationIds).hasSize(1);
+            assertThat(operationCounter.get(OperationType.PAYMENT_ORDER)).isEqualTo(1);
         } finally {
             executor.shutdownNow();
         }
     }
 
     @Test
-    void kayitliYanitBasliklariylaBirlikteDoner() throws Exception {
-        gonder(ODEME_EMRI, requestId, GOVDE);
+    void storedResponseIsReplayedWithItsHeaders() throws Exception {
+        send(PAYMENT_ORDER, requestId, BODY);
 
-        mockMvc.perform(post(ODEME_EMRI)
+        mockMvc.perform(post(PAYMENT_ORDER)
                         .header("x-request-id", requestId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(GOVDE))
+                        .content(BODY))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Content-Type", MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(header().string("x-request-id", requestId));
     }
 
-    private MvcResult gonder(String path, String id, String govde) throws Exception {
+    private MvcResult send(String path, String id, String body) throws Exception {
         return mockMvc.perform(post(path)
                         .header("x-request-id", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(govde))
+                        .content(body))
                 .andReturn();
     }
 
-    private static String islemNo(MvcResult result) throws Exception {
-        return JsonPath.read(result.getResponse().getContentAsString(), "$.islemNo");
+    private static String operationId(MvcResult result) throws Exception {
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.operationId");
     }
 }

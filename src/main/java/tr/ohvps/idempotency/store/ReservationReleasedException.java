@@ -1,12 +1,12 @@
 package tr.ohvps.idempotency.store;
 
 /**
- * İşlenen istek saklanacak bir yanıt üretmeden bittiğinde (hata, 5xx) bekleyen
- * kopyalara iletilir; kopyalar isteği yeniden işlemeyi dener.
+ * Delivered to waiting duplicates when the request in progress ends without a storable
+ * response (exception, 5xx); the duplicates then try to process the request themselves.
  */
 public class ReservationReleasedException extends RuntimeException {
 
     public ReservationReleasedException(String key) {
-        super("Rezervasyon yanıt saklanmadan bırakıldı: " + key);
+        super("Reservation released without a stored response: " + key);
     }
 }

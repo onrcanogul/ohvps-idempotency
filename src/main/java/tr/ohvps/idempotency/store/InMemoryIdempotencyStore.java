@@ -9,8 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.scheduling.annotation.Scheduled;
 
 /**
- * Tek düğüm için bellek içi depo. Süresi dolan kayıtlar okunurken yok sayılır
- * ve periyodik olarak temizlenir.
+ * In-memory store for a single node. Expired entries are ignored on read and
+ * evicted periodically.
  */
 public class InMemoryIdempotencyStore implements IdempotencyStore {
 
