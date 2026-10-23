@@ -11,9 +11,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import tr.ohvps.idempotency.checksum.ChecksumGenerator;
 import tr.ohvps.idempotency.store.IdempotencyStore;
-import tr.ohvps.idempotency.store.InMemoryIdempotencyStore;
-import tr.ohvps.idempotency.web.IdempotencyFilter;
-import tr.ohvps.idempotency.web.OhvpsErrorWriter;
+import tr.ohvps.idempotency.store.inmemory.InMemoryIdempotencyStore;
+import tr.ohvps.idempotency.web.error.OhvpsErrorWriter;
+import tr.ohvps.idempotency.web.filter.IdempotencyFilter;
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling

@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.store;
+package tr.ohvps.idempotency.store.inmemory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,6 +12,9 @@ import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.Test;
 
+import tr.ohvps.idempotency.store.exception.ReservationReleasedException;
+import tr.ohvps.idempotency.store.model.Reservation;
+import tr.ohvps.idempotency.store.model.StoredResponse;
 import tr.ohvps.idempotency.support.MutableClock;
 
 class InMemoryIdempotencyStoreTest {

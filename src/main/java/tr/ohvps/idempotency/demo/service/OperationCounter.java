@@ -1,10 +1,12 @@
-package tr.ohvps.idempotency.demo;
+package tr.ohvps.idempotency.demo.service;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.stereotype.Component;
+
+import tr.ohvps.idempotency.demo.model.OperationType;
 
 /**
  * Counts how many times the business logic of each operation type actually ran.

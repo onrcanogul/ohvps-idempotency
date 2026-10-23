@@ -31,8 +31,8 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.jayway.jsonpath.JsonPath;
 
-import tr.ohvps.idempotency.demo.OperationCounter;
-import tr.ohvps.idempotency.demo.OperationType;
+import tr.ohvps.idempotency.demo.model.OperationType;
+import tr.ohvps.idempotency.demo.service.OperationCounter;
 import tr.ohvps.idempotency.support.MutableClock;
 import tr.ohvps.idempotency.support.TestClockConfig;
 

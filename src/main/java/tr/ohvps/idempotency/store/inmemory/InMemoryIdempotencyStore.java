@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.store;
+package tr.ohvps.idempotency.store.inmemory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -7,6 +7,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.scheduling.annotation.Scheduled;
+
+import tr.ohvps.idempotency.store.IdempotencyStore;
+import tr.ohvps.idempotency.store.exception.ReservationReleasedException;
+import tr.ohvps.idempotency.store.model.Reservation;
+import tr.ohvps.idempotency.store.model.StoredResponse;
 
 /**
  * In-memory store for a single node. Expired entries are ignored on read and

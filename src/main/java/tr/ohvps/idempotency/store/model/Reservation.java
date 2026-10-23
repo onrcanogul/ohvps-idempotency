@@ -1,6 +1,9 @@
-package tr.ohvps.idempotency.store;
+package tr.ohvps.idempotency.store.model;
 
 import java.util.concurrent.CompletableFuture;
+
+import tr.ohvps.idempotency.store.IdempotencyStore;
+import tr.ohvps.idempotency.store.exception.ReservationReleasedException;
 
 /**
  * Result of {@link IdempotencyStore#reserve(String)} for a checksum.

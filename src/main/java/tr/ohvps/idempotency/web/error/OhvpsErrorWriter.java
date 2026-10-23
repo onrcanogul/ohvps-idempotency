@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.web;
+package tr.ohvps.idempotency.web.error;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

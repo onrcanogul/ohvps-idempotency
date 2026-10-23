@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.store;
+package tr.ohvps.idempotency.store.model;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.store;
+package tr.ohvps.idempotency.store.exception;
 
 /**
  * Delivered to waiting duplicates when the request in progress ends without a storable

@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.demo;
+package tr.ohvps.idempotency.demo.model;
 
 /**
  * POST operations for which the ÖHVPS idempotency rule is mandatory.

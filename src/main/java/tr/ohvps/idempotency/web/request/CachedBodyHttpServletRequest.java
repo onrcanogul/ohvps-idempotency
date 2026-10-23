@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.web;
+package tr.ohvps.idempotency.web.request;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;

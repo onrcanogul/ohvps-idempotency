@@ -30,18 +30,43 @@ YÖS ──POST + x-request-id──▶ IdempotencyFilter
                                 │                     · 409 if the wait times out
 ```
 
-## Components
+## Project structure
+
+```
+tr.ohvps.idempotency
+├── config/              IdempotencyConfig, IdempotencyProperties
+├── checksum/            ChecksumAlgorithm, ChecksumGenerator
+├── store/               IdempotencyStore
+│   ├── model/           Reservation, StoredResponse
+│   ├── exception/       ReservationReleasedException
+│   └── inmemory/        InMemoryIdempotencyStore
+├── web/
+│   ├── filter/          IdempotencyFilter
+│   ├── request/         CachedBodyHttpServletRequest
+│   └── error/           OhvpsErrorWriter
+└── demo/
+    ├── controller/      OhvpsDemoController
+    ├── service/         OperationCounter
+    └── model/           OperationType
+```
 
 | Class | Responsibility |
 |---|---|
+| `config.IdempotencyConfig` | Wires the beans and registers the filter |
+| `config.IdempotencyProperties` | `ohvps.idempotency.*` settings |
 | `checksum.ChecksumAlgorithm` | CRC32, MD5, SHA256 |
 | `checksum.ChecksumGenerator` | `x-request-id|body` checksum; the body is used as raw bytes |
-| `web.CachedBodyHttpServletRequest` | Reads the body once and lets the controller read it again |
 | `store.IdempotencyStore` | `reserve` / `complete` / `release` contract |
-| `store.InMemoryIdempotencyStore` | Single-node in-memory store with TTL and periodic eviction |
-| `web.IdempotencyFilter` | Applies the rule to the configured POST endpoints |
-| `web.OhvpsErrorWriter` | Writes filter errors in the ÖHVPS error body format |
-| `demo.OhvpsDemoController` | Sample endpoints for the eight mandatory POSTs (`OperationCounter` tracks how many times each one really ran) |
+| `store.model.Reservation` | Result of `reserve`: `Acquired` or `Existing` |
+| `store.model.StoredResponse` | Stored status code, headers and body |
+| `store.exception.ReservationReleasedException` | Signals waiting duplicates that no response was stored |
+| `store.inmemory.InMemoryIdempotencyStore` | Single-node in-memory store with TTL and periodic eviction |
+| `web.filter.IdempotencyFilter` | Applies the rule to the configured POST endpoints |
+| `web.request.CachedBodyHttpServletRequest` | Reads the body once and lets the controller read it again |
+| `web.error.OhvpsErrorWriter` | Writes filter errors in the ÖHVPS error body format |
+| `demo.controller.OhvpsDemoController` | Sample endpoints for the eight mandatory POSTs |
+| `demo.service.OperationCounter` | Tracks how many times each operation really ran |
+| `demo.model.OperationType` | The eight mandatory operations |
 
 ## Design decisions
 

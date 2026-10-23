@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.web;
+package tr.ohvps.idempotency.web.filter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,8 +31,10 @@ import org.springframework.web.util.pattern.PathPatternParser;
 import tr.ohvps.idempotency.checksum.ChecksumGenerator;
 import tr.ohvps.idempotency.config.IdempotencyProperties;
 import tr.ohvps.idempotency.store.IdempotencyStore;
-import tr.ohvps.idempotency.store.Reservation;
-import tr.ohvps.idempotency.store.StoredResponse;
+import tr.ohvps.idempotency.store.model.Reservation;
+import tr.ohvps.idempotency.store.model.StoredResponse;
+import tr.ohvps.idempotency.web.error.OhvpsErrorWriter;
+import tr.ohvps.idempotency.web.request.CachedBodyHttpServletRequest;
 
 /**
  * Applies the ÖHVPS idempotency rule to the configured POST endpoints:

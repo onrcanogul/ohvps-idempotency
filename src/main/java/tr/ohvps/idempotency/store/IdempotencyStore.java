@@ -1,9 +1,12 @@
 package tr.ohvps.idempotency.store;
 
+import tr.ohvps.idempotency.store.model.Reservation;
+import tr.ohvps.idempotency.store.model.StoredResponse;
+
 /**
  * Store that keeps responses for the TTL, keyed by checksum.
  * <p>
- * {@link InMemoryIdempotencyStore} is enough when the application runs on a single node.
+ * {@code InMemoryIdempotencyStore} is enough when the application runs on a single node.
  * With multiple nodes the same contract should be implemented with Redis ({@code SET NX PX})
  * or with a unique index on the checksum in a database.
  */

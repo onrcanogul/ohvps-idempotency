@@ -1,4 +1,4 @@
-package tr.ohvps.idempotency.demo;
+package tr.ohvps.idempotency.demo.controller;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import tr.ohvps.idempotency.demo.model.OperationType;
+import tr.ohvps.idempotency.demo.service.OperationCounter;
 
 /**
  * Sample ÖHVPS endpoints demonstrating the idempotency mechanism.
