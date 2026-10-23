@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: ohvps-idempotency
+
+ohvps:
+  idempotency:
+    enabled: true
+    request-id-header: x-request-id
+    # CRC32 | MD5 | SHA256
+    algorithm: SHA256
+    # ÖHVPS: yanıt 5 dakika saklanır, sonrasında aynı istek yeni istek sayılır
+    ttl: 5m
+    # Aynı istek işlenirken gelen kopyanın ilk yanıtı bekleme süresi
+    in-flight-wait: 30s
+    store-server-errors: false
+    replay-indicator-header: X-Idempotency-Replayed
+    cleanup-interval: 60s
+    # Kuralın zorunlu olduğu POST uç noktaları. Yollar API sürümüne göre güncellenmelidir.
+    paths:
+      - /ohvps/obh/s1.1/odeme-emri-rizasi
+      - /ohvps/gkd/s1.1/erisim-belirteci
+      - /ohvps/obh/s1.1/odeme-emri
+      - /ohvps/hbh/s1.1/hesap-bilgisi-rizasi
+      - /ohvps/obh/s1.1/ileri-tarihli-odeme-emri-rizasi
+      - /ohvps/obh/s1.1/ileri-tarihli-odeme-emri
+      - /ohvps/obh/s1.1/duzenli-odeme-emri-rizasi
+      - /ohvps/obh/s1.1/duzenli-odeme-emri
